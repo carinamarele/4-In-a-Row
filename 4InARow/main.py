@@ -38,6 +38,9 @@ NEXTHUMAN = 'next'
 HUMAN1='human1'
 HUMAN2='human2'
 COMPUTER = 'computer'
+EASY='easy'
+MEDIUM='medium'
+HARD='hard'
 
 class Button():
     def __init__(self,x,y,image,scale):
@@ -83,13 +86,13 @@ def main_menu(oponent):
 
             if button_1.collidepoint((mx, my)):
                 if click:
-                   startGame(oponent, 1)
+                   startGame(oponent, EASY)
             if button_2.collidepoint((mx, my)):
                 if click:
-                   startGame(oponent, 2)
+                   startGame(oponent, MEDIUM)
             if button_3.collidepoint((mx, my)):
                 if click:
-                   startGame(oponent, 3)
+                   startGame(oponent, HARD)
         else:
             #VS Human
             startGame(oponent, 0)
@@ -248,8 +251,16 @@ def runGame(dificulty):
 
             turn = COMPUTER
         else:
+            #in move retinem mutarea computerului cu dificultatea aleasa de noi
+            move = getComputerMove(mainBoard,dificulty)
 
-            #COMPUTER MOVE
+            #animam mutarea calculatorului si realizam mutarea
+            animateComputerMoving(mainBoard,move)
+
+            #dupa ce am mutat bila deasupra tablei facem mutarea
+            makeMove(mainBoard, BLACK, move)
+
+            #verific daca este castigator
             if isWinner(mainBoard, BLACK):
                 winnerImg = COMPUTERWINNERIMG
                 break
@@ -272,6 +283,49 @@ def runGame(dificulty):
                 return
 
         pygame.display.update()
+
+def getComputerMove(board,difficulty):
+
+    potentialMoves=[]
+    if difficulty == EASY:
+        for moveComputer in range(BOARDWIDTH):
+            if isValidMove(board,moveComputer):
+                potentialMoves.append(moveComputer)
+
+        finalMove=random.choice(potentialMoves)
+        return finalMove
+
+
+def animateComputerMoving(board, position):
+    #pozitia de unde pleaca bila computerului
+    x = BLACKPILERECT.left
+    y = BLACKPILERECT.top
+    speed = 0.1
+
+
+    # deplasam bila in sus
+    while y > (YMARGIN - SPACESIZE):
+        y -= int(speed)
+        speed += 0.02
+        drawBoard(board, {'x':x, 'y':y, 'color':BLACK})
+        pygame.display.update()
+        FPSCLOCK.tick()
+
+
+    # deplasam bila la stanga
+    y = YMARGIN - SPACESIZE
+    speed = 0.1
+    while x > (XMARGIN + position * SPACESIZE):
+        x -= int(speed)
+        speed += 0.02
+        drawBoard(board, {'x':x, 'y':y, 'color':BLACK})
+        pygame.display.update()
+        FPSCLOCK.tick()
+
+
+    # apelam functia pentru drop
+    animateDroppingToken(board, position, BLACK)
+
 
 #pozitionez bila pentru un player pe coloana dorita si pe cel mai jos rand
 def makeMove(board, player, column):
@@ -420,14 +474,14 @@ def animateDroppingToken(board, column, color):
     x = XMARGIN + column * SPACESIZE
     y = YMARGIN - SPACESIZE
 
-    dropSpeed = 1.0
+    dropSpeed = 0.1
 
     #decid unde voi pune bila(din cele mai joase locuri libere)
     lowestEmptySpace = getLowestEmptySpace(board, column)
 
     while True:
         y += int(dropSpeed)
-        dropSpeed += 0.5
+        dropSpeed += 0.02
 
         #cat timp nu ajung la pozitia unde vreau sa pun, bila cade.
         if int((y - YMARGIN) / SPACESIZE) >= lowestEmptySpace:
