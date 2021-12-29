@@ -17,7 +17,7 @@ For compiling the program you need set the following parameters:
   - then the second player( the one with BLACK token) will follow the first one by doing the same thing
   - if the board is full then a message will apear with 'Winner: Nobody Tie Click to continue'
   - when one player has 4 tokens in line it will show a message with 'Winner: Human1/Human2 Click to continue'
-  - if you want to continue playing the game against a human you will click anywhere on the screen
+  - if you want to continue playing the game against a human you will click anywhere on the screen but the one that started the previous match will also start the new one
  
    For you to play against the computer, you have to exit the game and compile the program again with right parameters( computer instead of human)
 
