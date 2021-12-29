@@ -35,6 +35,8 @@ BLACK = 'black'
 EMPTY = None
 HUMAN = 'human'
 NEXTHUMAN = 'next'
+HUMAN1='human1'
+HUMAN2='human2'
 COMPUTER = 'computer'
 
 class Button():
@@ -51,6 +53,10 @@ class Button():
 
 def main_menu(oponent):
     while True:
+
+        #Daca tabla nu e de dimensiunea 4x4 atunci vom arunca o exceptia si programul nu va porni
+        assert BOARDWIDTH >= 4 and BOARDHEIGHT >= 4, 'Board must be at least 4x4 to play 4 In A Row'
+
         display_surface.blit(BACKGROUND, (0, 0))
         mx, my = pygame.mouse.get_pos()
         x=WINDOWWIDTH*0.02+30
@@ -118,13 +124,14 @@ YMARGIN = int((WINDOWHEIGHT - BOARDHEIGHT * SPACESIZE) / 2)
 
 def startGame(oponent, dificulty):
 
-    global FPSCLOCK, SHOWSURFACE, REDPILERECT, BLACKPILERECT
+    global FPSCLOCK, SHOWSURFACE, REDPILERECT, BLACKPILERECT, FIRSTPLAYER
     global BLACKTOKENIMG, REDTOKENIMG, BOARDIMG, HUMANWINNERIMG, HUMAN1WINNERIMG, HUMAN2WINNERIMG, COMPUTERWINNERIMG, WINNERRECT, TIEIMG
 
     pygame.init()
     FPSCLOCK = pygame.time.Clock()
     SHOWSURFACE = pygame.display.set_mode((WINDOWWIDTH, WINDOWHEIGHT))
 
+    FIRSTPLAYER=sys.argv[4]
 
     #setarea bilelor langa tabla de joc(pe de o parte si de alta a ei), folosim rect pentru a putea apasa pe ele
     REDPILERECT = pygame.Rect(int(SPACESIZE / 2), WINDOWHEIGHT - int(3 * SPACESIZE / 2), SPACESIZE, SPACESIZE)
@@ -149,27 +156,25 @@ def startGame(oponent, dificulty):
     WINNERRECT = HUMANWINNERIMG.get_rect()
     WINNERRECT.center = (int(WINDOWWIDTH / 2), int(WINDOWHEIGHT / 2))
 
-    isFirstGame = True
+
     while True:
         if oponent=='computer':
-          runGame(isFirstGame,dificulty)
-          isFirstGame = False
+          runGame(dificulty)
+
         else:
             #Human VS Human
-            runGameHumans(isFirstGame)
-            isFirstGame = False
+            runGameHumans()
 
-def runGameHumans(isFirstGame):
 
-    #cand se deschide aplicatia, se presupune ca primul jucator stie cum se muta piesele si de aceea va muta el primul
-    if isFirstGame:
+def runGameHumans():
+
+    if FIRSTPLAYER == HUMAN1 or FIRSTPLAYER == HUMAN:
         turn = HUMAN
     else:
-        # Altfel se alege random cine incepe
-        if random.randint(0, 1) == 0:
-            turn = NEXTHUMAN
-        else:
-            turn = HUMAN
+        turn = NEXTHUMAN
+
+    #Dupa ce un jucator castiga, cand va incepe din nou jocul prin apasarea oriunde pe fereastra, FIRSTPLAYER ul nu se schimba, deci va incepe acelasi jucator
+    #Daca vrea sa inceapa celalalt jucator va trebui sa ruleze din nou jocul cu ultimul parametru schimbat.
 
 
     # Construim noua tabla de joc
@@ -219,18 +224,15 @@ def runGameHumans(isFirstGame):
         pygame.display.update()
 
 
-def runGame(isFirstGame,dificulty):
-    if isFirstGame:
-        #HUMAN(RED) , COMPUTER(BLACK)
-       #in jocul impotriva calculatorului, acesta va muta primul la primul joc pentru a vedea cum se muta
+def runGame(dificulty):
+
+    if FIRSTPLAYER == COMPUTER:
         turn = COMPUTER
     else:
-        # altfel alegem random
-        if random.randint(0, 1) == 0:
-            turn = COMPUTER
-        else:
-            turn = HUMAN
+        turn = HUMAN
 
+    #Dupa terminarea jocului, jucatorul poate juca in continuare cu calculatorul dar cel care a inceput prima data jocul trecut va incepe si acum
+    # Pentru a schimba ordinea, va trebui sa fie din nou rulat codul cu ultimul parametru schimbat
 
     # Contruim noua tabla de joc
     mainBoard = getNewBoard()
@@ -246,6 +248,7 @@ def runGame(isFirstGame,dificulty):
 
             turn = COMPUTER
         else:
+
             #COMPUTER MOVE
             if isWinner(mainBoard, BLACK):
                 winnerImg = COMPUTERWINNERIMG
