@@ -1,16 +1,17 @@
+import copy
 import random
 import pygame
 import sys
 from pygame.locals import *
 
 # importare imagini necesare pentru meniul principal cand se joaca cu computerul
-TITLE = pygame.image.load('tile.png')
-GAMEIMG = pygame.image.load('game.png')
-BACKGROUND = pygame.image.load('bk.png')
+TITLE = pygame.image.load('images/tile.png')
+GAMEIMG = pygame.image.load('images/game.png')
+BACKGROUND = pygame.image.load('images/bk.png')
 
-EASYIMG = pygame.image.load('easy.png')
-MEDIUMIMG = pygame.image.load('medium.png')
-HARDIMG = pygame.image.load('hard.png')
+EASYIMG = pygame.image.load('images/easy.png')
+MEDIUMIMG = pygame.image.load('images/medium.png')
+HARDIMG = pygame.image.load('images/hard.png')
 
 # Setup pygame/window ---------------------------------------- #
 mainClock = pygame.time.Clock()
@@ -21,14 +22,12 @@ screen = pygame.display.set_mode((950, 800), 0, 32)
 
 font = pygame.font.SysFont('Comic Sans MS', 50)
 
-WINDOWWIDTH = 950  # lungimea ferestrei,in pixeli
-WINDOWHEIGHT = 800  # inaltime fereastra in pixeli
-BOARDWIDTH = int(sys.argv[2])  # cat de lunga este tabla
-BOARDHEIGHT = int(sys.argv[3])  # cat de inalta este tabla
+window_width = 950  # lungimea ferestrei,in pixeli
+window_height = 800  # inaltime fereastra in pixeli
 
 pygame.display.set_icon(GAMEIMG)
 
-display_surface = pygame.display.set_mode((WINDOWWIDTH, WINDOWHEIGHT))
+display_surface = pygame.display.set_mode((window_width, window_height))
 
 RED = 'red'
 BLACK = 'black'
@@ -38,11 +37,16 @@ HUMAN2 = 'human2'
 HUMAN = 'human'
 COMPUTER = 'computer'
 
-EMPTY = None
 EASY = 'easy'
 MEDIUM = 'medium'
 HARD = 'hard'
 
+
+board_width = int(sys.argv[2])
+board_height = int(sys.argv[3])
+
+last_human_moves = {}
+last_ai_moves={}
 
 class Button():
     def __init__(self, x, y, image, scale):
@@ -57,17 +61,17 @@ class Button():
         screen.blit(self.image, (self.rect.x, self.rect.y))
 
 
-def main_menu(oponent):
+def main_menu(oponent1, width, height, firstplayer):
     while True:
 
         # Daca tabla nu e de dimensiunea 4x4 atunci vom arunca o exceptia si programul nu va porni
-        assert BOARDWIDTH >= 4 and BOARDHEIGHT >= 4, 'Board must be at least 4x4 to play 4 In A Row'
+        assert width >= 4 and height >= 4, 'Board must be at least 4x4 to play 4 In A Row'
 
         display_surface.blit(BACKGROUND, (0, 0))
         mx, my = pygame.mouse.get_pos()
 
-        x = WINDOWWIDTH*0.02+30
-        y = WINDOWHEIGHT*0.2-120
+        x = window_width*0.02+30
+        y = window_height*0.2-120
 
         display_surface.blit(TITLE, (x, y - 10))
         display_surface.blit(GAMEIMG, (x, y + 100))
@@ -91,16 +95,16 @@ def main_menu(oponent):
 
             if easyButtonRect.collidepoint((mx, my)):
                 if click:
-                   startGame(oponent, EASY)
+                    choose_mode_play(oponent1, firstplayer, EASY)
             if mediumButtonRect.collidepoint((mx, my)):
                 if click:
-                   startGame(oponent, MEDIUM)
+                    choose_mode_play(oponent1, firstplayer, MEDIUM)
             if hardButtonRect.collidepoint((mx, my)):
                 if click:
-                   startGame(oponent, HARD)
+                    choose_mode_play(oponent1, firstplayer, HARD)
         else:
             # VS Human
-            startGame(oponent, EMPTY)
+            choose_mode_play(oponent1, firstplayer, None)
 
         click = False
         for event in pygame.event.get():
@@ -119,61 +123,96 @@ def main_menu(oponent):
         mainClock.tick(60)
 
 
-SPACESIZE = 50   # dimensiunea tokenurilor
 
-FPS = 30  # frames per second to update the screen
+space_size = 50   # dimensiunea tokenurilor
 
 # poziția de unde începe tabla
-XMARGIN = int((WINDOWWIDTH - BOARDWIDTH * SPACESIZE) / 2)
-YMARGIN = int((WINDOWHEIGHT - BOARDHEIGHT * SPACESIZE) / 2)
+XMARGIN = int((window_width - board_width * space_size) / 2)
+YMARGIN = int((window_height - board_height * space_size) / 2)
 
 
-def startGame(oponent, difficulty):
-    global FPSCLOCK, SHOWSURFACE, REDPILERECT, BLACKPILERECT, FIRSTPLAYER, WINNERRECT
-    global BLACKTOKENIMG, REDTOKENIMG, BOARDIMG, HUMANWINNERIMG, HUMAN1WINNERIMG, HUMAN2WINNERIMG, COMPUTERWINNERIMG, TIEIMG
+def init_game():
+    global FPSCLOCK, display_surface_game, redpilerect, blackpilerect, FIRSTPLAYER, winnerrect, last_move_AI
+    global blacktokenimg, redtokenimg, boardimg, humanwinnerimg, human1_winnerimg, human2_winnerimg, computerwinnerimg, tieimg
 
+    last_human_moves.clear()
     pygame.init()
     FPSCLOCK = pygame.time.Clock()
 
-    SHOWSURFACE = pygame.display.set_mode((WINDOWWIDTH, WINDOWHEIGHT))
+    display_surface_game = pygame.display.set_mode((window_width, window_height))
 
-    FIRSTPLAYER=sys.argv[4]
+    FIRSTPLAYER = sys.argv[4]
 
     # setarea bilelor langa tabla de joc(pe de o parte si de alta a ei), folosim rect pentru a putea apasa pe ele
-    REDPILERECT = pygame.Rect(int(SPACESIZE / 2), WINDOWHEIGHT - int(SPACESIZE * 3 / 2), SPACESIZE, SPACESIZE)
-    BLACKPILERECT = pygame.Rect(WINDOWWIDTH - int(3 * SPACESIZE / 2), WINDOWHEIGHT - int(3 * SPACESIZE / 2), SPACESIZE,
-                                SPACESIZE)
+    redpilerect = pygame.Rect(int(space_size / 2), window_height - int(space_size * 3 / 2), space_size, space_size)
+    blackpilerect = pygame.Rect(window_width - int(3 * space_size / 2), window_height - int(3 * space_size / 2), space_size, space_size)
+    humanwinnerimg = pygame.image.load('images/human_winner.png')
+    human1_winnerimg = pygame.image.load('images/human1_winner.png')
+    human2_winnerimg = pygame.image.load('images/human2_winner.png')
+    computerwinnerimg = pygame.image.load('images/computer_winner.png')
+    tieimg = pygame.image.load('images/tie.png')
 
     # modific imaginea la o dimensiune potrivita
-    BOARDIMG = pygame.image.load('board.png')
-    BOARDIMG = pygame.transform.smoothscale(BOARDIMG, (SPACESIZE, SPACESIZE))
-    REDTOKENIMG = pygame.image.load('token_red.png')
-    REDTOKENIMG = pygame.transform.smoothscale(REDTOKENIMG, (SPACESIZE, SPACESIZE))
-    BLACKTOKENIMG = pygame.image.load('token_black.png')
-    BLACKTOKENIMG = pygame.transform.smoothscale(BLACKTOKENIMG, (SPACESIZE, SPACESIZE))
+    boardimg = pygame.image.load('images/board.png')
+    boardimg = pygame.transform.smoothscale(boardimg, (space_size, space_size))
+    redtokenimg = pygame.image.load('images/token_red.png')
+    redtokenimg = pygame.transform.smoothscale(redtokenimg, (space_size, space_size))
+    blacktokenimg = pygame.image.load('images/token_black.png')
+    blacktokenimg = pygame.transform.smoothscale(blacktokenimg, (space_size, space_size))
 
-    HUMANWINNERIMG = pygame.image.load('human_winner.png')
-    HUMAN1WINNERIMG = pygame.image.load('human1_winner.png')
-    HUMAN2WINNERIMG = pygame.image.load('human2_winner.png')
-    COMPUTERWINNERIMG = pygame.image.load('computer_winner.png')
-    TIEIMG = pygame.image.load('tie.png')
-
-    WINNERRECT = HUMANWINNERIMG.get_rect()
-    WINNERRECT.center = (int(WINDOWWIDTH / 2), int(WINDOWHEIGHT / 2))
+    winnerrect = humanwinnerimg.get_rect()
+    winnerrect.center = (int(window_width / 2), int(window_height / 2))
 
 
+def choose_mode_play(oponent_game, firstplayer, difficulty):
+
+    init_game()
     while True:
-        if oponent == 'computer':
-          playComputerGame(difficulty)
-
+        if oponent_game == COMPUTER:
+            start_computer_play(firstplayer,  difficulty)
         else:
-            #Human VS Human
-            playHumansGame()
+            start_human_play(firstplayer)
 
 
-def playHumansGame():
+# desenez tabla, extraToken reprezinta locul unde va fi pusa bila,mereu se actualizeaza
+def draw_board(board, token_to_draw=None):
 
-    if FIRSTPLAYER == HUMAN1 or FIRSTPLAYER == HUMAN:
+    # initial pun extraToken=none pentru cand desenez tabla la inceperea jocului, inainte de vreo mutare
+    display_surface.blit(BACKGROUND, (0, 0))
+
+    # desenez tokenurile,verificand daca in structura tablei am RED sau BLACK
+    space_rect = pygame.Rect(0, 0, space_size, space_size)
+
+    for x in range(board_width):
+        for y in range(board_height):
+            space_rect.topleft = (XMARGIN + (x * space_size), YMARGIN + (y * space_size))
+
+            if board[x][y] == RED:  # afișez imaginea corespunzătoare
+                display_surface_game.blit(redtokenimg, space_rect)
+            elif board[x][y] == BLACK:
+                display_surface_game.blit(blacktokenimg, space_rect)
+
+    # daca nu sunt la initializare atunci variabila va contine pozitia si culoarea tokenului de desenat
+    if token_to_draw is not None:
+        if token_to_draw['color'] == BLACK:
+            display_surface_game.blit(blacktokenimg, (token_to_draw['x'], token_to_draw['y'], space_size, space_size))
+        elif token_to_draw['color'] == RED:
+            display_surface_game.blit(redtokenimg, (token_to_draw['x'], token_to_draw['y'], space_size, space_size))
+
+    # afisez fiecare bucata de tabla, construindu-i si un rect pentru a putea interactiona
+    for x in range(board_width):
+        for y in range(board_height):
+            space_rect.topleft = (XMARGIN + (x * space_size), YMARGIN + (y * space_size))
+            display_surface_game.blit(boardimg, space_rect)
+
+    # afisez imaginile pentru locul de unde iau tokenurile ffolosindu-ma de recturile initializate
+    display_surface_game.blit(redtokenimg, redpilerect) # red on the left
+    display_surface_game.blit(blacktokenimg, blackpilerect) # black on the right
+
+
+def start_human_play(firstplayer):
+
+    if firstplayer == HUMAN1 or firstplayer == HUMAN:
         turn = HUMAN1
     else:
         turn = HUMAN2
@@ -183,42 +222,43 @@ def playHumansGame():
     # Daca vrea sa inceapa celalalt jucator va trebui sa ruleze din nou jocul cu ultimul parametru schimbat.
 
     # Construim noua tabla de joc
-    mainBoard = buildNewBoard()
+    mainBoard = build_new_board()
 
     while True:
         # loop-ul principal unde se decide ce se va face in functie de tura
         # Human1 primul jucator(RED), Human2 al doilea(BLACK)
 
         if turn == HUMAN1:
-            getHumanMove(mainBoard, HUMAN1)
+
+            get_humans_move(mainBoard, HUMAN1)
 
             # dupa fiecare mutare se verifica daca a castigat si se afiseaza imaginea corespunzatoare
-            if isWinner(mainBoard, RED):
-                winnerImg = HUMAN1WINNERIMG
+            if is_winner(mainBoard, RED):
+                winnerImg = human1_winnerimg
                 break
             # dupa ce face mutarea, tura se muta la celalalt jucator
             turn = HUMAN2
 
         else:  # al doilea jucator
 
-            getHumanMove(mainBoard, HUMAN2)
+            get_humans_move(mainBoard, HUMAN2)
 
-            if isWinner(mainBoard, BLACK):
-                winnerImg = HUMAN2WINNERIMG
+            if is_winner(mainBoard, BLACK):
+                winnerImg = human2_winnerimg
                 break
 
-            turn = HUMAN1 # si revenim inapoi la primul jucator dupa mutare
+            turn = HUMAN1  # si revenim inapoi la primul jucator dupa mutare
 
-       # daca ajungem in cazul in care nu mai avem unde muta inseamna ca este remiza si se va afisa mesajul corespunzator
-        if isBoardFull(mainBoard):
-            winnerImg = TIEIMG
+        # daca ajungem in cazul in care nu mai avem unde muta inseamna ca este remiza si se va afisa mesajul corespunzator
+        if is_board_full(mainBoard):
+            winnerImg = tieimg
             break
 
-    running=True
+    running = True
     # daca unul din castigatori a castigat actualizam tabla si afisam mesajul final pentru winner
     while running:
-        drawBoard(mainBoard)
-        SHOWSURFACE.blit(winnerImg, WINNERRECT)
+        draw_board(mainBoard)
+        display_surface_game.blit(winnerImg, winnerrect)
 
         FPSCLOCK.tick()
         for event in pygame.event.get():
@@ -233,101 +273,181 @@ def playHumansGame():
         mainClock.tick(60)
 
 
-def playComputerGame(difficulty):
+def start_computer_play(firstplayer,difficulty):
 
-    if FIRSTPLAYER == COMPUTER:
+    if firstplayer == COMPUTER:
         turn = COMPUTER
     else:
         turn = HUMAN
 
-    # Dupa terminarea jocului, jucatorul poate juca in continuare cu calculatorul
-    # dar cel care a inceput prima data jocul trecut va incepe si acum
-    # Pentru a schimba ordinea, va trebui sa fie din nou rulat codul cu ultimul parametru schimbat
+        # Dupa terminarea jocului, jucatorul poate juca in continuare cu calculatorul
+        # dar cel care a inceput prima data jocul trecut va incepe si acum
+        # Pentru a schimba ordinea, va trebui sa fie din nou rulat codul cu ultimul parametru schimbat
 
-    # Contruim noua tabla de joc
-    mainBoard = buildNewBoard()
+        # Contruim noua tabla de joc
+    mainBoard = build_new_board()
 
     while True:
         if turn == HUMAN:
 
-            getHumanMove(mainBoard,HUMAN)
+            get_humans_move(mainBoard, HUMAN)
 
-            if isWinner(mainBoard, RED):
-                winnerImg = HUMANWINNERIMG
+            if is_winner(mainBoard, RED):
+                winnerImg = humanwinnerimg
                 break
-
 
             turn = COMPUTER
         else:
             # in move retinem mutarea computerului cu dificultatea aleasa de noi
-            getComputerMove(mainBoard, difficulty)
-
+            get_computer_move(mainBoard, difficulty)
+            print(last_ai_moves)
             # verific daca este castigator
-            if isWinner(mainBoard, BLACK):
-                winnerImg = COMPUTERWINNERIMG
+            if is_winner(mainBoard, BLACK):
+                winnerImg = computerwinnerimg
                 break
 
             turn = HUMAN
 
-        if isBoardFull(mainBoard):
-            winnerImg = TIEIMG
+        if is_board_full(mainBoard):
+            winnerImg = tieimg
             break
 
     while True:
-            drawBoard(mainBoard)
-            SHOWSURFACE.blit(winnerImg, WINNERRECT)
-            FPSCLOCK.tick()
+        draw_board(mainBoard)
+        display_surface_game.blit(winnerImg, winnerrect)
+        FPSCLOCK.tick()
 
-            for event in pygame.event.get(): # event handling loop
-                if event.type == QUIT or (event.type == KEYUP and event.key == K_ESCAPE):
-                    pygame.quit()
-                    sys.exit()
-                elif event.type == MOUSEBUTTONUP:
-                    return
+        for event in pygame.event.get():  # event handling loop
+            if event.type == QUIT or (event.type == KEYUP and event.key == K_ESCAPE):
+                pygame.quit()
+                sys.exit()
+            elif event.type == MOUSEBUTTONUP:
+                return
 
-            pygame.display.update()
+        pygame.display.update()
 
-def getComputerMove(board,difficulty):
-
-    potentialMoves = []
+def get_computer_move(board,difficulty):
+    final_move = 0
+    potential_moves = []
     if difficulty == EASY:
-        for moveComputer in range(BOARDWIDTH):
-            if isValidMove(board, moveComputer):
-                potentialMoves.append(moveComputer)
+        for moveComputer in range(board_width):
+            if is_valid_move(board, moveComputer):
+                potential_moves.append(moveComputer)
 
-        finalMove = random.choice(potentialMoves)
+
+        final_move = random.choice(potential_moves)
+    elif difficulty == MEDIUM:
+        potential_moves = [0] * board_width
+
+        for move in range(board_width):
+            if is_valid_move(board, move):
+                copy_board = copy.deepcopy(board)
+                makeMove(copy_board, BLACK, move)
+                if not is_winner(copy_board, BLACK):
+                    for red_move in range(board_width):
+                        if not is_valid_move(copy_board, red_move):
+                            continue
+                        else:
+                            copy_board_again = copy.deepcopy(copy_board)
+                            makeMove(copy_board_again, RED, red_move)
+                            if is_winner(copy_board_again, RED):
+                                potential_moves[move] = -1
+                                break
+                            else:
+                                potential_moves[move] += potential_moves[move] / board_width
+                else:
+                    potential_moves[move] = 1
+            else:
+                continue
+        best_new_choice = -1
+        for i in range(board_width):
+            if potential_moves[i] > best_new_choice and is_valid_move(board, i):
+                best_new_choice = potential_moves[i]
+        # find all potential moves that have this best fitness
+        bestMoves = []
+        lenght=len(potential_moves)
+
+        for i in range(lenght):
+            if potential_moves[i] == best_new_choice and is_valid_move(board, i):
+                bestMoves.append(i)
+        final_move= random.choice(bestMoves)
+
+    else:
+        potential_moves=[0]*board_width
+        iteration=1
+        color=BLACK
+        oponent_color=RED
+        while iteration < 4:
+
+            for move in range(board_width):
+                if not is_valid_move(board,move):
+                    continue
+                else:
+                    copy_board=copy.deepcopy(board)
+                    makeMove(copy_board,color,move)
+                    if not is_winner(copy_board,color):
+                        for op_move in range(board_width):
+                            if is_valid_move(board,op_move):
+                                new_copy=copy.deepcopy(copy_board)
+                                makeMove(new_copy,oponent_color,op_move)
+                                if is_winner(new_copy,oponent_color):
+                                    potential_moves[move]=-1
+                                else:
+                                    potential_moves[move]+=potential_moves[move]/board_width
+                            else: continue
+                    else:
+                        potential_moves[move]=1
+            swap_color=color
+            color=oponent_color
+            oponent_color=swap_color
+
+        best_new_choice = -1
+        for i in range(board_width):
+            if potential_moves[i] > best_new_choice and is_valid_move(board, i):
+                best_new_choice = potential_moves[i]
+        # find all potential moves that have this best fitness
+        bestMoves = []
+        lenght = len(potential_moves)
+
+        for i in range(lenght):
+            if potential_moves[i] == best_new_choice and is_valid_move(board, i):
+                bestMoves.append(i)
+        final_move = random.choice(bestMoves)
+
+
 
     # animam mutarea calculatorului si realizam mutarea
-    animateComputerMoving(board, finalMove)
+    animating_computer_move(board, final_move)
 
 
-def animateComputerMoving(board, position):
+# mai intai in sus | si dupa la stanga -- pana la pozitia dorita
+def animating_computer_move(board, position):
 
     # pozitia de unde pleaca bila computerului
-    x = BLACKPILERECT.left
-    y = BLACKPILERECT.top
+    x = blackpilerect.left
+    y = blackpilerect.top
     speed = 0.1
 
     # deplasam bila in sus
-    while y > (YMARGIN - SPACESIZE):
+    while y > (YMARGIN - space_size):
         y -= int(speed)
         speed += 0.02
-        drawBoard(board, {'x':x, 'y':y, 'color':BLACK})
+        draw_board(board, {'x':x, 'y':y, 'color':BLACK})
         pygame.display.update()
         FPSCLOCK.tick()
 
     # deplasam bila la stanga
-    y = YMARGIN - SPACESIZE
+    y = YMARGIN - space_size
     speed = 0.1
-    while x > (XMARGIN + position * SPACESIZE):
+    while x > (XMARGIN + position * space_size):
         x -= int(speed)
         speed += 0.02
-        drawBoard(board, {'x':x, 'y':y, 'color':BLACK})
+        draw_board(board, {'x':x, 'y':y, 'color':BLACK})
         pygame.display.update()
         FPSCLOCK.tick()
 
     # apelam functia pentru drop
-    dropToken(board, position, BLACK)
+    animation_dropping_token(board, position, BLACK)
 
     # dupa ce am mutat bila deasupra tablei facem mutarea
     makeMove(board, BLACK, position)
@@ -337,77 +457,77 @@ def animateComputerMoving(board, position):
 def makeMove(board, player, column):
     lowest = -1
 
-    for y in range(BOARDHEIGHT-1, -1, -1):  # start,stop,step
-        if board[column][y] == EMPTY:
+    for y in range(board_height-1, -1, -1):  # start,stop,step
+        if board[column][y] == None:
             lowest = y
+            last_ai_moves.update({'row': y, 'column': column})
             break
 
-    if lowest != -1:
+    if lowest is not -1:
         board[column][lowest] = player
 
-# desenez tabla, extraToken reprezinta locul unde va fi pusa bila
-def drawBoard(board, extraToken=None):
 
-    # initial pun extraToken=none pentru cand desenez tabla la inceperea jocului, inainte de vreo mutare
-    display_surface.blit(BACKGROUND, (0, 0))
 
-    # desenez tokenurile,verificand daca in board am RED sau BLACK
-    spaceRect = pygame.Rect(0, 0, SPACESIZE, SPACESIZE)
 
-    for x in range(BOARDWIDTH):
-        for y in range(BOARDHEIGHT):
-            spaceRect.topleft = (XMARGIN + (x * SPACESIZE), YMARGIN + (y * SPACESIZE))
-
-            if board[x][y] == RED:  # afisez imaginea corespunzatoare
-                SHOWSURFACE.blit(REDTOKENIMG, spaceRect)
-
-            elif board[x][y] == BLACK:
-                SHOWSURFACE.blit(BLACKTOKENIMG, spaceRect)
-
-    # desenez tokenul pe care il vreau sa il pun, adica cand fac mutare
-    if extraToken != None:
-        if extraToken['color'] == RED:
-            SHOWSURFACE.blit(REDTOKENIMG, (extraToken['x'], extraToken['y'], SPACESIZE, SPACESIZE))
-        elif extraToken['color'] == BLACK:
-            SHOWSURFACE.blit(BLACKTOKENIMG, (extraToken['x'], extraToken['y'], SPACESIZE, SPACESIZE))
-
-    # desenez imaginea pentru tabla
-    for x in range(BOARDWIDTH):
-        for y in range(BOARDHEIGHT):
-            spaceRect.topleft = (XMARGIN + (x * SPACESIZE), YMARGIN + (y * SPACESIZE))
-            SHOWSURFACE.blit(BOARDIMG, spaceRect)
-
-    # desenez locul de unde iau bilele
-    SHOWSURFACE.blit(REDTOKENIMG, REDPILERECT) # red on the left
-    SHOWSURFACE.blit(BLACKTOKENIMG, BLACKPILERECT) # black on the right
-
-# construiesc tabla intr-un array(structura tablei)
-def buildNewBoard():
+# construiesc tabla intr-un array de array uri(structura tablei)
+def build_new_board():
     board = []
-    for x in range(BOARDWIDTH):
-        # umplu array ul cu None-uri pe coloane, transformându-l astfel intr-o matrice
-        board.append([EMPTY] * BOARDHEIGHT)
+    for x in range(board_width):
+        # umplu array ul cu None-uri pe coloane, transformându-l astfel intr-o matrice [None,None,....]
+        board.append([None] * board_height)
+    print(board)
+
     return board
 
-# returnez indicele randului pentru cel mai jos spatiu liber de pe coloana data
-# daca nu mai este loc va returna -1
-def getLowestEmptySpace(board, column):
-    for y in range(BOARDHEIGHT-1, -1, -1):# start,stop,step
-        if board[column][y] == EMPTY:
-            return y
-    return -1
 
-def getHumanMove(board, player):
-    draggingToken = False
+# verific daca mai este vreun loc liber
+def is_board_full(board):
+
+    for x in range(board_width):
+        for y in range(board_height):
+            if board[x][y] == None:
+                return False
+    return True
+
+
+# iau pe cazuri, tile={RED,BLACK}
+def is_winner(board, color):
+    # verific orizontal
+    for x in range(board_width - 3):
+        for y in range(board_height):
+            if board[x][y] == color and board[x+1][y] == color and board[x+2][y] == color and board[x+3][y] == color:
+                return True
+    # verific vertical
+    for x in range(board_width):
+        for y in range(board_height - 3):
+            if board[x][y] == color and board[x][y+1] == color and board[x][y+2] == color and board[x][y+3] == color:
+                return True
+    # verific diagonal(\)
+    for x in range(board_width - 3):
+        for y in range(3, board_height):
+            if board[x][y] == color and board[x+1][y-1] == color and board[x+2][y-2] == color and board[x+3][y-3] == color:
+                return True
+    # verific diagonal(/)
+    for x in range(board_width - 3):
+        for y in range(board_height - 3):
+            if board[x][y] == color and board[x+1][y+1] == color and board[x+2][y+2] == color and board[x+3][y+3] == color:
+                return True
+
+    # daca nu sunt valide variantele de mai sus returnez fals
+    return False
+
+
+def get_humans_move(board, player):
+    is_dragged = False
     tokenx, tokeny = None, None
 
     if player == HUMAN or player == HUMAN1:
-        colorToken = RED
-        pileColor = REDPILERECT
+        color_token = RED
+        pile_color = redpilerect
     else:
         # next human
-        colorToken = BLACK
-        pileColor = BLACKPILERECT
+        color_token = BLACK
+        pile_color = blackpilerect
 
     while True:
         for event in pygame.event.get(): # event handling loop
@@ -416,127 +536,107 @@ def getHumanMove(board, player):
                 sys.exit()
 
             # verific daca se apasa pe imaginea de unde trebuie sa iau bilele si memorez pozitia
-            elif event.type == MOUSEBUTTONDOWN and not draggingToken and pileColor.collidepoint(event.pos):
-                draggingToken = True
+            elif event.type == MOUSEBUTTONDOWN and not is_dragged and pile_color.collidepoint(event.pos):
+                is_dragged = True
                 tokenx, tokeny = event.pos
 
             # memorez pozitia actuala cand mouse ul se misca
-            elif event.type == MOUSEMOTION and draggingToken:
+            elif event.type == MOUSEMOTION and is_dragged:
                 tokenx, tokeny = event.pos
 
             # dau drumul obiectului si verific daca are pozitia in intervalul corespunzator tablei
-            elif event.type == MOUSEBUTTONUP and draggingToken:
+            elif event.type == MOUSEBUTTONUP and is_dragged:
 
                 if player == HUMAN or player == HUMAN1:
                     expressionToTest = tokeny < YMARGIN
                 elif player == HUMAN2:
                     # next human
-                    expressionToTest = tokeny > (YMARGIN - SPACESIZE)
+                    expressionToTest = tokeny > (YMARGIN - space_size)
 
                 # daca nu depaseste tabla, verific daca pot efectua miscare
                 # si daca da apelez animatia si actualizez tabla si redesenez
-                if expressionToTest and XMARGIN < tokenx < WINDOWWIDTH - XMARGIN:
-                    column = int((tokenx - XMARGIN) / SPACESIZE)
+                if expressionToTest and XMARGIN < tokenx < window_width - XMARGIN:
+                    column = int((tokenx - XMARGIN) / space_size)
 
-                    if isValidMove(board, column):
-                        dropToken(board, column, colorToken)
-                        board[column][getLowestEmptySpace(board, column)] = colorToken
-                        drawBoard(board)
+                    if is_valid_move(board, column):
+                        animation_dropping_token(board, column, color_token)
+                        row = get_lowest_empty_space_on_board(board, column)
+                        board[column][row] = color_token
+                        last_human_moves.update({'row': row, 'column': column})
+                        draw_board(board)
                         pygame.display.update()
                         return
+                    else:
+                        print("Out of boundaries or not empty..Try again in another position!")
 
-                #sterg pozitiile memorate anterior pentru urmatoarea miscare
+                #  sterg pozitiile memorate anterior pentru urmatoarea miscare
                 tokenx, tokeny = None, None
-                draggingToken = False
+                is_dragged = False
 
         # daca tokenx si tokeny raman goale atunci tabla ramane neschimbata, altfel o redesnez cu mutarea efectuata
-        if tokenx != None and tokeny != None:
-            drawBoard(board, {'x': tokenx - int(SPACESIZE / 2), 'y': tokeny - int(SPACESIZE / 2), 'color': colorToken})
+        if tokenx is not None and tokeny is not None:
+            draw_board(board, {'x': tokenx - int(space_size / 2), 'y': tokeny - int(space_size / 2), 'color': color_token})
         else:
-            drawBoard(board)
+            draw_board(board)
 
         pygame.display.update()
         FPSCLOCK.tick()
 
 
-# verific daca a depasit bordura tablei sau daca locul unde vreau sa pun e ocupat
-def isValidMove(board, column):
-    if column < 0 or column >= BOARDWIDTH or board[column][0] != EMPTY:
-        return False
-    return True
+def print_board(board):
+
+    for x in range(board_height):
+        array = []
+        for y in range(board_width):
+            array.append(board[y][x])
+            print(x)
+        print(array)
 
 
 # animatia pentru mutare, am nevoie de tabla cu pozitiile ocupate,
 # de pozitia(din lungime) unde vreau sa fac mutarea si culoarea tokenului
-def dropToken(board, column, color):
+def animation_dropping_token(board, column, color):
 
     # calculez pozitia in pixeli pe tabla
-    x = XMARGIN + column * SPACESIZE
-    y = YMARGIN - SPACESIZE
+    x = XMARGIN + column * space_size
+    y = YMARGIN - space_size
 
     dropSpeed = 0.1
 
     # decid unde voi pune bila(din cele mai joase locuri libere)
-    lowestEmptySpace = getLowestEmptySpace(board, column)
+    lowest_empty_space = get_lowest_empty_space_on_board(board, column)
 
     while True:
         y += int(dropSpeed)
         dropSpeed += 0.02
 
         # cat timp nu ajung la pozitia unde vreau sa pun, bila cade.
-        if int((y - YMARGIN) / SPACESIZE) >= lowestEmptySpace:
+        if int((y - YMARGIN) / space_size) >= lowest_empty_space:
             return
-        drawBoard(board, {'x':x, 'y':y, 'color':color})
+        draw_board(board, {'x': x, 'y': y, 'color': color})
         pygame.display.update()
         FPSCLOCK.tick()
 
 
 # verific daca a depasit bordura tablei sau daca locul unde vreau sa pun e ocupat
-def isValidMove(board, column):
-    if column < 0 or column >= BOARDWIDTH or board[column][0] != EMPTY:
+def is_valid_move(board, column):
+    if column < 0 or column >= board_width or board[column][0] is not None:
         return False
     return True
 
 
-# verific daca mai este vreun loc liber
-def isBoardFull(board):
-    for x in range(BOARDWIDTH):
-        for y in range(BOARDHEIGHT):
-            if board[x][y] == EMPTY:
-                return False
-    return True
+# returnez indicele randului pentru cel mai jos spatiu liber de pe coloana data
+# daca nu mai este loc va returna -1
+def get_lowest_empty_space_on_board(board, column):
+    for y in range(board_height-1, -1, -1):  # start,stop,step
+        if board[column][y] == None:
+            return y
+    return -1
 
 
-# iau pe cazuri, tile={RED,BLACK}
-def isWinner(board, color):
-    # verific orizontal
-    for x in range(BOARDWIDTH - 3):
-        for y in range(BOARDHEIGHT):
-            if board[x][y] == color and board[x+1][y] == color and board[x+2][y] == color and board[x+3][y] == color:
-                return True
-    # verific vertical
-    for x in range(BOARDWIDTH):
-        for y in range(BOARDHEIGHT - 3):
-            if board[x][y] == color and board[x][y+1] == color and board[x][y+2] == color and board[x][y+3] == color:
-                return True
-    # verific diagonal(\)
-    for x in range(BOARDWIDTH - 3):
-        for y in range(3, BOARDHEIGHT):
-            if board[x][y] == color and board[x+1][y-1] == color and board[x+2][y-2] == color and board[x+3][y-3] == color:
-                return True
-    # verific diagonal(/)
-    for x in range(BOARDWIDTH - 3):
-        for y in range(BOARDHEIGHT - 3):
-            if board[x][y] == color and board[x+1][y+1] == color and board[x+2][y+2] == color and board[x+3][y+3] == color:
-                return True
-
-    # daca nu sunt valide variantele de mai sus returnez fals
-    return False
-
-
-if __name__ == "__main__":
-
-    OPONENT = sys.argv[1]
-    WIDTH = int(sys.argv[2])
-    LENGHT= int(sys.argv[3])
-    main_menu(OPONENT)
+if __name__ == '__main__':
+    oponent = sys.argv[1]
+    board_width = int(sys.argv[2])
+    board_height = int(sys.argv[3])
+    first_player = sys.argv[4]
+    main_menu(oponent, board_width, board_height, first_player)
