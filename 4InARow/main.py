@@ -222,8 +222,8 @@ def main_menu(oponent1, width, height, firstplayer):
 space_size = 50  # dimensiunea tokenurilor
 
 # poziția de unde începe tabla
-XMARGIN = int((window_width - board_width * space_size) / 2)
-YMARGIN = int((window_height - board_height * space_size) / 2)
+XBOARD = int((window_width - board_width * space_size) / 2)
+YBOARD = int((window_height - board_height * space_size) / 2)
 
 
 def init_game():
@@ -383,9 +383,9 @@ def draw_board(board, turn, name, token_to_draw=None):
     for x in range(board_width):
         for y in range(board_height):
             if board_height < 8:
-                space_rect.topleft = (XMARGIN + (x * space_size), YMARGIN + (y * space_size))
+                space_rect.topleft = (XBOARD + (x * space_size), YBOARD + (y * space_size))
             else:
-                space_rect.topleft = (XMARGIN + (x * space_size), YMARGIN + ((y - 2) * space_size))
+                space_rect.topleft = (XBOARD + (x * space_size), YBOARD + ((y - 2) * space_size))
 
             if board[x][y] == RED:
                 display_surface_game.blit(redtokenimg, space_rect)
@@ -393,11 +393,11 @@ def draw_board(board, turn, name, token_to_draw=None):
                 display_surface_game.blit(blacktokenimg, space_rect)
 
     if board_height > 7:
-        position1 = YMARGIN + ((board_height - 2) * space_size + 10)
-        position2 = YMARGIN + ((board_height - 1) * space_size + 10)
+        position1 = YBOARD + ((board_height - 2) * space_size + 10)
+        position2 = YBOARD + ((board_height - 1) * space_size + 10)
     else:
-        position1 = YMARGIN + (board_height * space_size + space_size)
-        position2 = YMARGIN + (board_height * space_size + 2 * space_size)
+        position1 = YBOARD + (board_height * space_size + space_size)
+        position2 = YBOARD + (board_height * space_size + 2 * space_size)
 
     draw_text('        How to Play Connect 4 | The Rules of Connect 4', pygame.font.SysFont('Comic Sans MS', 20),
               (0, 0, 0), display_surface_game, space_size * 5 - 30, position1)
@@ -426,9 +426,9 @@ def draw_board(board, turn, name, token_to_draw=None):
     for x in range(board_width):
         for y in range(board_height):
             if board_height < 8:
-                space_rect.topleft = (XMARGIN + (x * space_size), YMARGIN + (y * space_size))
+                space_rect.topleft = (XBOARD + (x * space_size), YBOARD + (y * space_size))
             else:
-                space_rect.topleft = (XMARGIN + (x * space_size), YMARGIN + ((y - 2) * space_size))
+                space_rect.topleft = (XBOARD + (x * space_size), YBOARD + ((y - 2) * space_size))
 
             display_surface_game.blit(boardimg, space_rect)
 
@@ -505,6 +505,20 @@ def start_human_play(firstplayer, human_name1, human_name2):
 
 
 def start_computer_play(firstplayer, difficulty):
+    """
+    Funcție pentru rularea jocului cu calculatorul. Prima data verific cine începe pentru a seta tura, după construiesc
+    structura tablei de joc. Cat timp nu s-a terminat jocul voi face schimbul intre ture.
+    Daca este rândul omului, atunci apelez funcția pentru preluarea mutării jetonului si după verific:
+    - daca este castigator
+    - daca este plina tabla
+    Daca a castigat omul, atunci voi afișa imaginea de final cu mesajul corespunzător, la fel si pentru tabla plina(tie)
+    Daca este tura calculatorului, la fel apelez funcția pentru determinarea mutării automate.
+    La fel, verific daca a castigat sau e remiza.
+    La finalul fiecărei mutări, daca nu a castigat nimeni pana in momentul acela, schimb tura.
+    :param firstplayer: cine începe
+    :param difficulty: dificultatea aleasa din meniu
+    :return: tabla actualizata
+    """
     if firstplayer == COMPUTER:
         turn = COMPUTER
     else:
@@ -557,65 +571,62 @@ def start_computer_play(firstplayer, difficulty):
         pygame.display.update()
 
 
-def see_move(board, level):
+def see_move(board, color, level):
     """
+    Initial vectorul pentru posibile mutări este de forma [ 0,0,0...0] reprezentând scorul fiecărei poziții disponibile
     Se parcurge fiecare poziție joasa de pe fiecare coloana, verificând daca este valida, daca este castigatoarea sau
     daca ajuta adversarul sa castige.
     In funcție de rezultatul la aceste condiții scorul fiecărei mutări se schimba.
-    Adaug 1 daca este castigatoare, scad 1 daca ajuta oponentul sa castige si nu fac nimic daca nu avansează oponentul
+    Adaug 1 daca este castigatoare, scad 1 daca ajuta oponentul sa castige si si pun 0 daca nu avansează oponentul,iar
+    daca tabla va fi plina cu acea mutare realizata, atunci nu se influenteaza scorul si voi returna 0
+    Daca castig eu sau calculatorul, nu are rost sa mai caut si pentru celelalte poziții
+    Pentru calcularea scorului voi aduna rezultatul
     La final caut mutarea cu scorul maxim, iar daca sunt mai multe fac un random si returnez o mutare
     :param board: tabla de joc
+    :param color: culoarea celui care muta
     :param level: cate iteratii va face pentru fiecare nivel, 1 pentru mediu, 4 pentru hard
     :return: mutarea calculatorului
     """
-    if level == MEDIUM:
-        iteration = 2
+    if level == 0:
+        return [0] * board_width
+    if color == RED:
+        enemy = BLACK
     else:
-        iteration = 4
+        enemy = RED
+    possible_moves = [0]*board_width
+    if is_board_full(board):
+        return [0] * board_width
+    for move in range(board_width):
+        if is_valid_move(board, move):
+            copy_board = copy.deepcopy(board)
+            make_move(copy_board, color, move)
 
-    potential_moves = [0] * board_width
-    i = 1
-    color = BLACK
-    oponent_color = RED
-    while i < iteration:
-
-        for move in range(board_width):
-            if not is_valid_move(board, move):
-                continue
+            if is_winner(copy_board, color):
+                possible_moves[move] = 1
+                break
             else:
-                copy_board = copy.deepcopy(board)
-                make_move(copy_board, color, move)
-                if not is_winner(copy_board, color):
-                    for op_move in range(board_width):
-                        if is_valid_move(board, op_move):
-                            new_copy = copy.deepcopy(copy_board)
-                            make_move(new_copy, oponent_color, op_move)
-                            if is_winner(new_copy, oponent_color):
-                                potential_moves[move] = -1
+                if is_board_full(copy_board):
+                    possible_moves[move] = 0
+                else:
+                    for alter_move in range(board_width):
+                        new_copy_board = copy.deepcopy(copy_board)
+                        if is_valid_move(new_copy_board, alter_move):
+                            make_move(new_copy_board, enemy, alter_move)
+                            if is_winner(new_copy_board, enemy):
+                                possible_moves[move] = -1
+                                break
+                            if is_board_full(new_copy_board):
+                                possible_moves[move] = 0
                             else:
-                                potential_moves[move] += potential_moves[move] / board_width
+                                see_next = see_move(new_copy_board, color, level - 1)
+                                print(see_next)
+                                possible_moves[move] += sum(see_next) / board_width / board_width
                         else:
                             continue
-                else:
-                    potential_moves[move] = 1
-        swap_color = color
-        color = oponent_color
-        oponent_color = swap_color
-        i += 1
+        else:
+            continue
 
-    max_potential = -1
-    for i in range(board_width):
-        if potential_moves[i] > max_potential and is_valid_move(board, i):
-            max_potential = potential_moves[i]
-    best_moves = []
-    length = len(potential_moves)
-
-    for i in range(length):
-        if potential_moves[i] == max_potential and is_valid_move(board, i):
-            best_moves.append(i)
-    final_move = random.choice(best_moves)
-
-    return final_move
+    return possible_moves
 
 
 def get_computer_move(board, difficulty):
@@ -646,56 +657,41 @@ def get_computer_move(board, difficulty):
         final_move = random.choice(potential_moves)
 
     elif difficulty == MEDIUM:
-        final_move = see_move(board, MEDIUM)
+        potential_moves = see_move(board, BLACK, 1)
+        print(potential_moves)
+        final_move = choose_final_move(board, potential_moves)
     else:
-        potential_moves = [0] * board_width
-        i = 1
-        color = BLACK
-        oponent_color = RED
-        while i < 4:
+        potential_moves = see_move(board, BLACK, 2)
+        print(potential_moves)
+        final_move = choose_final_move(board, potential_moves)
 
-            for move in range(board_width):
-                if not is_valid_move(board, move):
-                    continue
-                else:
-                    copy_board = copy.deepcopy(board)
-                    make_move(copy_board, color, move)
-                    if not is_winner(copy_board, color):
-                        for op_move in range(board_width):
-                            if is_valid_move(board, op_move):
-                                new_copy = copy.deepcopy(copy_board)
-                                make_move(new_copy, oponent_color, op_move)
-                                if is_winner(new_copy, oponent_color):
-                                    potential_moves[move] = -2
-                                else:
-                                    potential_moves[move] += potential_moves[move] / board_width
-                            else:
-                                continue
-                    else:
-                        potential_moves[move] = 1
-            swap_color = color
-            color = oponent_color
-            oponent_color = swap_color
-            i += 1
-
-        max_potential = -1
-        for i in range(board_width):
-            if potential_moves[i] > max_potential and is_valid_move(board, i):
-                max_potential = potential_moves[i]
-        best_moves = []
-        length = len(potential_moves)
-
-        for i in range(length):
-            if potential_moves[i] == max_potential and is_valid_move(board, i):
-                best_moves.append(i)
-        final_move = random.choice(best_moves)
-
-    animating_computer_move(board, final_move)
+    computer_move_automatically(board, final_move)
 
 
-def animating_computer_move(board, position):
+def choose_final_move(board, moves):
     """
-    Animatie pentru mutarea automata a bilei negre(a calculatorului).
+    In moves am scorul pentru fiecare mutare posibila disponibila. Pentru a alege cea mai buna opțiune, calculatorul
+    ar trebui sa aleagă scorul maxim, iar pentru asta memorez maximul in best score si după il caut
+    Daca am mai multe poziții cu același scor(best), atunci voi alege random din ele.
+    :param board: tabla de joc
+    :param moves: scorul mutărilor disponibile
+    :return: poziția unde va muta calculatorul
+    """
+    best_score = -1
+    for i in range(board_width):
+        if moves[i] > best_score and is_valid_move(board, i):
+            best_score = moves[i]
+
+    best_moves = []
+    for i in range(len(moves)):
+        if moves[i] == best_score and is_valid_move(board, i):
+            best_moves.append(i)
+    return random.choice(best_moves)
+
+
+def computer_move_automatically(board, position):
+    """
+    Funcție pentru mutarea automata a bilei negre(a calculatorului).
     Aceasta se va deplasa initial in sus pana cand ajunge deasupra tablei, după se va deplasa la stânga pana la coloana
     dorita.
     :param board: tabla de joc
@@ -705,35 +701,35 @@ def animating_computer_move(board, position):
     # poziția de unde pleacă bila computerului
     x = blackpilerect.left
     y = blackpilerect.top
-    speed = 0.2
+    speed = 1.2
 
     if board_height < 8:
-        max_position = YMARGIN - space_size
+        max_position = YBOARD - space_size
     else:
-        max_position = YMARGIN - 3 * space_size
+        max_position = YBOARD - 3 * space_size
     # deplasam bila in sus
     while y > max_position:
         y -= int(speed)
-        speed += 0.03
+        speed += 0.1
         draw_board(board, 0, '', {'x': x, 'y': y, 'color': BLACK})
         pygame.display.update()
         FPSCLOCK.tick()
 
     # deplasam bila la stânga
     if board_height < 8:
-        y = YMARGIN - space_size
+        y = YBOARD - space_size
     else:
-        y = YMARGIN - 3 * space_size
-    speed = 0.19
-    while x > (XMARGIN + position * space_size):
+        y = YBOARD - 3 * space_size
+    speed = 1.19
+    while x > (XBOARD + position * space_size):
         x -= int(speed)
-        speed += 0.04
+        speed += 0.1
         draw_board(board, 0, '', {'x': x, 'y': y, 'color': BLACK})
         pygame.display.update()
         FPSCLOCK.tick()
 
     # apelam funcția pentru drop
-    animation_dropping_token(board, position, BLACK)
+    drop_token(board, position, BLACK)
 
     # după ce am mutat bila deasupra tablei facem mutarea in structura tablei de joc
     make_move(board, BLACK, position)
@@ -761,7 +757,8 @@ def make_move(board, player, column):
 
 def build_new_board():
     """
-    Construiesc structura tablei de joc, unde voi sti unde sunt piesele formata din array uri initializate cu None
+    Funcție pentru construirea structurii tablei de joc, unde voi sti unde sunt piesele formata din array uri
+    initializate cu None
     Array urile adăugate reprezinta coloanele, deci pentru width= 5 height=4 voi avea:
     [None,None,None,None] <- de 5 ori
     :return:
@@ -776,7 +773,7 @@ def build_new_board():
 
 def is_board_full(board):
     """
-    Verific daca tabla este plina
+    Funcție pentru verificarea daca tabla este plina
     :param board: tabla de joc
     :return: True daca nu mai este vreun loc liber, False altfel
     """
@@ -789,7 +786,7 @@ def is_board_full(board):
 
 def is_winner(board, color):
     """
-    Metoda care verifica daca am 4 in linie(orizontal,vertical,diagonal
+    Funcție care verifica daca am 4 in linie(orizontal,vertical,diagonal
     :param board: tabla de joc
     :param color: culoarea pentru care verific cele 4 token uri in linie
     :return: False daca niciunul din cazuri nu returnează True
@@ -855,21 +852,21 @@ def get_humans_move(board, name, player):
             elif event.type == MOUSEBUTTONUP and is_dragged:
                 if player == HUMAN or player == HUMAN1:
                     if board_height > 7:
-                        expression_to_test = tokeny < YMARGIN - 2 * space_size
+                        expression_to_test = tokeny < YBOARD - 2 * space_size
                     else:
-                        expression_to_test = tokeny < YMARGIN
+                        expression_to_test = tokeny < YBOARD
                 elif player == HUMAN2:
                     # next human
                     if board_height > 7:
-                        expression_to_test = tokeny > (YMARGIN - 3 * space_size)
+                        expression_to_test = tokeny > (YBOARD - 3 * space_size)
                     else:
-                        expression_to_test = tokeny > (YMARGIN - space_size)
+                        expression_to_test = tokeny > (YBOARD - space_size)
 
-                if expression_to_test and XMARGIN < tokenx < window_width - XMARGIN:
-                    column = int((tokenx - XMARGIN) / space_size)
+                if expression_to_test and XBOARD < tokenx < window_width - XBOARD:
+                    column = int((tokenx - XBOARD) / space_size)
 
                     if is_valid_move(board, column):
-                        animation_dropping_token(board, column, color_token)
+                        drop_token(board, column, color_token)
                         row = get_lowest_empty_space_on_board(board, column)
                         board[column][row] = color_token
                         last_human_moves.update({'row': row, 'column': column})
@@ -913,22 +910,22 @@ def print_board(board):
         print(array)
 
 
-def animation_dropping_token(board, column, color):
+def drop_token(board, column, color):
     """
-    Metoda care face animatia pentru eliberarea token ului de deasupra tablei de joc
+    Funcție care pentru eliberarea jetonului,
     :param board: tabla de joc
     :param column: coloana unde doresc sa dau drumul token ului
     :param color: culoarea token ului
     :return: oprire funcție
     """
     # calculez poziția in pixeli pe tabla
-    x = XMARGIN + column * space_size
+    x = XBOARD + column * space_size
 
     if board_height > 7:
-        y = YMARGIN - 3 * space_size
+        y = YBOARD - 3 * space_size
     else:
-        y = YMARGIN - space_size
-    drop_speed = 0.1
+        y = YBOARD - space_size
+    drop_speed = 1.1
 
     # decid unde voi pune bila(din cele mai joase locuri libere)
     lowest_empty_space = get_lowest_empty_space_on_board(board, column)
@@ -939,10 +936,10 @@ def animation_dropping_token(board, column, color):
 
         # cat timp nu ajung la poziția unde vreau sa pun, bila cade.
         if board_height > 7:
-            if int((y - YMARGIN + 3 * space_size) / space_size) >= lowest_empty_space:
+            if int((y - YBOARD + 3 * space_size) / space_size) >= lowest_empty_space:
                 return
         else:
-            if int((y - YMARGIN) / space_size) >= lowest_empty_space:
+            if int((y - YBOARD) / space_size) >= lowest_empty_space:
                 return
         draw_board(board, 0, '', {'x': x, 'y': y, 'color': color})
         pygame.display.update()
@@ -951,7 +948,7 @@ def animation_dropping_token(board, column, color):
 
 def is_valid_move(board, column):
     """
-    Metoda pentru verificarea unei metode, daca este in interiorul tablei de joc
+    Funcție pentru verificarea unei metode, daca este in interiorul tablei de joc
     :param board: Tabla unde sunt mutările
     :param column: coloana pe care o vom verifica
     :return: True daca este posibila mutarea, False altfel
@@ -963,7 +960,7 @@ def is_valid_move(board, column):
 
 def get_lowest_empty_space_on_board(board, column):
     """
-    Metoda pentru a lua cel mai jos spatiu liber de pe coloana data ca parametru
+    Funcție pentru a lua cel mai jos spatiu liber de pe coloana data ca parametru
     :param board: tabla de joc
     :param column: coloana de unde doresc sa iau primul spatiu liber
     :return: poziția daca exista spatiu liber pe coloana data ca parametru, -1 in cazul in care coloana este plina
