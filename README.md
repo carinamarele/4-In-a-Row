@@ -11,7 +11,7 @@ For compiling the program you need set the following parameters:
 ### **Two main modes:**
 There are two main modes: H VS H, H VS C.
 
-##I. Human VS Human
+## I. Human VS Human
   - after compiling the program, a menu will pop out, in which you can type the name of the players if they want.
   - for the first game, the first player( the one with RED token) will start by clicking the RED token and moving it above the board 
   - when it's released you can see how it drops into the position you want
@@ -23,7 +23,7 @@ There are two main modes: H VS H, H VS C.
  
    For you to play against the computer, you have to exit the game and compile the program again with right parameters(4th parameter: computer instead of human)
 
-##II. Human Vs Computer
+## II. Human Vs Computer
    - after compiling the game, a menu will pop out, where you can choose the difficulty you want to play( **easy, medium, hard**).
    - after clicking one level it will redirect you to the game
    - if the 4th parameter is human, then he starts by clicking and moving the token from the pile above the board and when it's released, it will drop automatically.
